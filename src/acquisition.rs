@@ -7,7 +7,7 @@ use reqwest;
 use reqwest::Client;
 use serde_json::{self, Value};
 use std::collections::HashMap;
-use std::iter::FromIterator;
+use std::{fs, time};
 
 /// Given some currency, this method constructs the weighted edge for the graph with respect to
 /// the given currency.
@@ -31,21 +31,36 @@ pub fn construct_graph(client: &mut Client, base_currency: &str) -> Result<Forex
     // Create a queue of currencies to handle, with the base currency as the first thing on the
     // queue
     let mut graph = ForexGraph::new();
-    let mut queue: Vec<&str> = Vec::new();
-    queue.push(base_currency);
+    let mut queue: Vec<String> = Vec::new();
+    queue.push(base_currency.to_string());
 
-    while queue.len() > 0 {
+    while !queue.is_empty() {
         let currency = queue.pop().unwrap();
         let edges: HashMap<String, f32> = get_currency_data(client, &currency)?;
         let mut cloned_edges: HashMap<String, f32> = HashMap::new();
 
         for key in edges.keys() {
             if !graph.contains_key(key) {
-                queue.push(key);
+                queue.push(key.to_string());
             }
-            cloned_edges.insert(key.clone(), edges[key].clone());
+            cloned_edges.insert(key.clone(), edges[key]);
         }
-        graph.insert(String::from(currency), cloned_edges);
+        graph.insert(currency, cloned_edges);
     }
     Ok(graph)
+}
+
+/// Given some graph, save the graph to disk as a JSON file
+/// `file_name` dictates the file name that the disk will be saved to. If no filename is supplied,
+/// the default format will be `$UNIX_TIME-forex-graph.json`
+pub fn save_graph(graph: &ForexGraph, file_name: Option<String>) -> Result<(), Error> {
+    let time = &time::SystemTime::now()
+        .duration_since(time::SystemTime::UNIX_EPOCH)?
+        .as_nanos();
+    let file_name = file_name.unwrap_or_else(|| format!("{}-forex-graph.json", &time));
+
+    // Try serializing the graph and saving to disk
+    let json_graph = serde_json::to_string(graph)?;
+    fs::write(file_name, json_graph)?;
+    Ok(())
 }
