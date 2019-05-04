@@ -14,11 +14,12 @@ mod graph;
 )]
 struct Opt {
     /// (optional) The path to a serialized graph file
-    #[structopt(short = "i", long = "graph-file")]
+    #[structopt(short = "i", long = "input")]
     graph_file: Option<String>,
 
     /// (optional) The file name to save the serialized graph. If no filename is supplied, this
     /// will use the default filename format: "$UNIX_EPOCH-forex-graph.json"
+    #[structopt(short = "o", long = "output")]
     save_file: Option<String>,
 }
 
@@ -44,16 +45,14 @@ fn main() -> Result<(), Box<std::error::Error>> {
         panic!("Improper arguments");
     }
 
-    if let graph_file = opt.graph_file {
+    // Determine whether the graph needs to be constructed or loaded from a file
+    if opt.graph_file.is_some() {
+        panic!("Not implemented yet");
     } else {
         let mut client = reqwest::Client::new();
         let map = construct_graph(&mut client, "USD")?;
-        save_graph(&map, None)?;
+        save_graph(&map, opt.save_file)?;
     }
-    // Get the text response
-    //let resp_text = reqwest::get("https://api.exchangeratesapi.io/latest?base=USD")?.text()?;
-    //let map: serde_json::Value = serde_json::from_str(&resp_text)?;
-    //println!("{:#?}", map);
 
     // Save map as a json file
     Ok(())

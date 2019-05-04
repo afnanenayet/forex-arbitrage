@@ -3,6 +3,7 @@
 
 use crate::graph::ForexGraph;
 use failure::Error;
+use futures::{Future, Stream};
 use reqwest;
 use reqwest::Client;
 use serde_json::{self, Value};
@@ -21,6 +22,11 @@ fn get_currency_data(client: &mut Client, currency: &str) -> Result<HashMap<Stri
     let map: Value = client.get(&url).send()?.json()?;
     let rate_map: HashMap<String, f32> = serde_json::from_value(map["rates"].clone())?;
     Ok(rate_map)
+}
+
+/// Asynchronously query the FOREX API data
+fn fetch(url: &str) -> impl Future<Item = reqwest::r#async::Response, Error = reqwest::Error> {
+    reqwest::r#async::Client::new().get(url).send()
 }
 
 /// Construct a graph that can be used for arbitrage, starting from some base currency code. This
