@@ -64,3 +64,6 @@ pub fn save_graph(graph: &ForexGraph, file_name: Option<String>) -> Result<(), E
     fs::write(file_name, json_graph)?;
     Ok(())
 }
+
+// Given a file name, load a graph from the serialized JSON file
+//pub fn load_graph(file_name: &str) -> Result<ForexGraph, Error> {}
