@@ -72,4 +72,8 @@ pub fn save_graph(graph: &ForexGraph, file_name: Option<String>) -> Result<(), E
 }
 
 // Given a file name, load a graph from the serialized JSON file
-//pub fn load_graph(file_name: &str) -> Result<ForexGraph, Error> {}
+pub fn load_graph(file_name: &str) -> Result<ForexGraph, Error> {
+    let json = std::fs::read_to_string(file_name)?;
+    let graph: ForexGraph = serde_json::from_str(&json)?;
+    Ok(graph)
+}
