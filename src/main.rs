@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use structopt::StructOpt;
 
 mod acquisition;
-mod bellman_ford;
 mod graph;
 
 #[derive(Debug, Fail)]
