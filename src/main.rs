@@ -1,6 +1,7 @@
 use acquisition::{construct_graph, load_graph, save_graph};
 use failure::{self, Error, Fail};
 use reqwest;
+use std::collections::HashMap;
 use structopt::StructOpt;
 
 mod acquisition;
@@ -61,9 +62,20 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let arbitrage_op = graph::detect_any_cycle(&map);
 
     if arbitrage_op.values().any(|x| *x) {
-        println!("cycle detected!");
+        println!("arbitrage opportunities detected:");
+
+        for start_currency in map.keys() {
+            for end_currency in map[start_currency].keys() {
+                if map[start_currency][end_currency] < 0.0 {
+                    println!(
+                        "- {} -> {} -> {}",
+                        start_currency, end_currency, start_currency
+                    );
+                }
+            }
+        }
     } else {
-        println!("no cycle detected");
+        println!("no arbitrage opportunities detected");
     }
     Ok(())
 }

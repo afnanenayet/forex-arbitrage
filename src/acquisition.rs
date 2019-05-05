@@ -8,6 +8,7 @@ use reqwest;
 use reqwest::Client;
 use serde_json::{self, Value};
 use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::{fs, time};
 
 /// Given some currency, this method constructs the weighted edge for the graph with respect to
@@ -21,7 +22,10 @@ fn get_currency_data(client: &mut Client, currency: &str) -> Result<HashMap<Stri
     // Extract the part of the JSON response that yields edge weights
     let map: Value = client.get(&url).send()?.json()?;
     let rate_map: HashMap<String, f32> = serde_json::from_value(map["rates"].clone())?;
-    Ok(rate_map)
+
+    // transform the values with the negative log so it's compatible with the bellman-ford search
+    let transformed = HashMap::from_iter(rate_map.iter().map(|(k, v)| (k.clone(), -1.0 * v.ln())));
+    Ok(transformed)
 }
 
 /// Asynchronously query the FOREX API data
