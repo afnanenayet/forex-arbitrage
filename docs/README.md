@@ -16,10 +16,10 @@ end up at currency X, but with more money than we started from.
 
 Because the Bellman-Ford algorithm adds weights, we need to figure out some
 transformation that allows us to use addition to find a positive weight cycle.
-
-Note that `log(a) + log(b) = log(a + b)`. Using `-log(x)` lets us turn positive
-cycles into negative ones, which means that we can detect arbitrage
-opportunities by finding a negative cycle in a graph.
+We know that `log(a) + log(b) = log(a * b)`, which takes care of the addition
+problem. Using `-log(x)` lets us turn positive cycles into negative ones, which
+means that we can detect arbitrage opportunities by finding a negative cycle in
+a graph.
 
 ## Usage
 
