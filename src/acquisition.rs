@@ -1,7 +1,7 @@
 //! This module handles acquiring data from external sources and parsing them in a format that is
 //! easy for the rest of the library to understand.
 
-use crate::graph::ForexGraph;
+use crate::graph::{ForexGraph, Rate};
 use failure::Error;
 use futures::{Future, Stream};
 use reqwest;
@@ -16,16 +16,17 @@ use std::{fs, time};
 ///
 /// `currency` is the currency code that the API will recognize. If this is incorrect, then the
 /// request will fail.
-fn get_currency_data(client: &mut Client, currency: &str) -> Result<HashMap<String, f32>, Error> {
+fn get_currency_data(client: &mut Client, currency: &str) -> Result<HashMap<String, Rate>, Error> {
     let url = format!("https://api.exchangeratesapi.io/latest?base={}", currency);
 
     // Extract the part of the JSON response that yields edge weights
     let map: Value = client.get(&url).send()?.json()?;
-    let rate_map: HashMap<String, f32> = serde_json::from_value(map["rates"].clone())?;
+    let rate_map: HashMap<String, Rate> = serde_json::from_value(map["rates"].clone())?;
 
     // transform the values with the negative log so it's compatible with the bellman-ford search
-    let transformed = HashMap::from_iter(rate_map.iter().map(|(k, v)| (k.clone(), -1.0 * v.ln())));
-    Ok(transformed)
+    //let transformed = HashMap::from_iter(rate_map.iter().map(|(k, v)| (k.clone(), -1.0 * v.ln())));
+    //Ok(transformed)
+    Ok(rate_map)
 }
 
 /// Asynchronously query the FOREX API data
@@ -46,8 +47,8 @@ pub fn construct_graph(client: &mut Client, base_currency: &str) -> Result<Forex
 
     while !queue.is_empty() {
         let currency = queue.pop().unwrap();
-        let edges: HashMap<String, f32> = get_currency_data(client, &currency)?;
-        let mut cloned_edges: HashMap<String, f32> = HashMap::new();
+        let edges: HashMap<String, Rate> = get_currency_data(client, &currency)?;
+        let mut cloned_edges: HashMap<String, Rate> = HashMap::new();
 
         for key in edges.keys() {
             if !graph.contains_key(key) {
@@ -58,6 +59,23 @@ pub fn construct_graph(client: &mut Client, base_currency: &str) -> Result<Forex
         graph.insert(currency, cloned_edges);
     }
     Ok(graph)
+}
+
+/// Perform a transformation on a graph so that it can be used with the Bellman-Ford algorithm
+///
+/// This method takes the pricing data for each currency, and transforms it using the negative log,
+/// returning a new transformed graph
+pub fn transform_graph(graph: &ForexGraph) -> ForexGraph {
+    HashMap::from_iter(graph.iter().map(|(start_currency, rates)| {
+        (
+            start_currency.clone(),
+            HashMap::from_iter(
+                rates
+                    .iter()
+                    .map(|(end_currency, rate)| (end_currency.clone(), -1.0 * rate.ln())),
+            ),
+        )
+    }))
 }
 
 /// Given some graph, save the graph to disk as a JSON file

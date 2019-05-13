@@ -1,7 +1,7 @@
-use acquisition::{construct_graph, load_graph, save_graph};
+use acquisition::{construct_graph, load_graph, save_graph, transform_graph};
 use failure::{self, Error, Fail};
 use reqwest;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use structopt::StructOpt;
 
 mod acquisition;
@@ -48,33 +48,48 @@ fn main() -> Result<(), Box<std::error::Error>> {
     opt.verify()?;
 
     // Determine whether the graph needs to be constructed or loaded from a file
-    let map = match opt.graph_file {
-        Some(fname) => load_graph(&fname)?,
-        None => {
-            let mut client = reqwest::Client::new();
-            let map = construct_graph(&mut client, "USD")?;
-            save_graph(&map, opt.save_file)?;
-            map
-        }
+    let rates = if let Some(fname) = opt.graph_file {
+        load_graph(&fname)?
+    } else {
+        let mut client = reqwest::Client::new();
+        let map = construct_graph(&mut client, "USD")?;
+        save_graph(&map, opt.save_file)?;
+        map
     };
+    println!("--> Data acquired");
+    let transformed_rates = transform_graph(&rates);
+    println!("--> Data transformed");
+    let arbitrage_op = graph::detect_any_cycle(&transformed_rates);
+    println!("--> Graph has been processed");
 
-    let arbitrage_op = graph::detect_any_cycle(&map);
+    // Filter out parts of the map that returned `None`, since they aren't useful to us
+    let valid_arbitrage_ops: HashSet<Vec<&String>> = arbitrage_op
+        .iter()
+        .filter(|&(_k, v)| v.is_some())
+        .map(|(_k, v)| (*v).clone().unwrap())
+        .collect();
 
-    if arbitrage_op.values().any(|x| *x) {
+    if valid_arbitrage_ops.is_empty() {
+        println!("no arbitrage opportunities detected");
+    } else {
         println!("arbitrage opportunities detected:");
 
-        for start_currency in map.keys() {
-            for end_currency in map[start_currency].keys() {
-                if map[start_currency][end_currency] < 0.0 {
-                    println!(
-                        "- {} -> {} -> {}",
-                        start_currency, end_currency, start_currency
-                    );
+        for path in valid_arbitrage_ops {
+            let currency_path = path;
+            let mut res: graph::Rate = 1.0;
+
+            for i in 0..currency_path.len() - 1 {
+                res *= rates[currency_path[i]][currency_path[i + 1]];
+            }
+
+            if res > 1.0 {
+                for currency in currency_path.iter().take(currency_path.len() - 1) {
+                    print!("{} -> ", currency);
                 }
+                print!("{}", currency_path[currency_path.len() - 1]);
+                println!(" (gain: x{})", res);
             }
         }
-    } else {
-        println!("no arbitrage opportunities detected");
     }
     Ok(())
 }
