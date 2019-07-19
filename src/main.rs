@@ -65,8 +65,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
     // Filter out parts of the map that returned `None`, since they aren't useful to us
     let valid_arbitrage_ops: HashSet<Vec<&String>> = arbitrage_op
         .iter()
-        .filter(|&(_k, v)| v.is_some())
-        .map(|(_k, v)| (*v).clone().unwrap())
+        .filter_map(|(_k, v)| (*v).clone())
         .collect();
 
     if valid_arbitrage_ops.is_empty() {

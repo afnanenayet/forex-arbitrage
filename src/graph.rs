@@ -1,5 +1,6 @@
 //! Module for defining the graph structure as well as convenience methods for the graph
 
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Type alias for the type that represents a conversion rate.
@@ -51,7 +52,7 @@ where
             // cycle and return it. We can figure out the path using backtracking and the
             // predecessor table.
             if distances[u] + graph[u][v] < distances[v] {
-                let mut path = Vec::new();
+                let mut path = Vec::with_capacity(graph[u].keys().len());
                 let mut current_vert = u;
 
                 // This condition detects the cycle, otherwise reconstructing the path is an
@@ -83,15 +84,13 @@ where
 }
 
 /// Given a graph, detect whether there is a cycle, using each currency as the starting node
-pub fn detect_any_cycle<K>(graph: &Graph<K, Rate>) -> HashMap<&K, Option<Vec<&K>>>
+pub fn detect_any_cycle<'a, K>(graph: &'a Graph<K, Rate>) -> HashMap<&'a K, Option<Vec<&'a K>>>
 where
-    K: std::hash::Hash + std::cmp::Eq + std::fmt::Debug,
+    K: std::hash::Hash + std::cmp::Eq + std::fmt::Debug + std::marker::Sync,
 {
-    let mut res = HashMap::new();
-
-    for key in graph.keys() {
-        let cycle = detect_cycle(graph, key);
-        res.insert(key, cycle);
-    }
-    res
+    let key_vec: Vec<&K> = graph.keys().collect();
+    key_vec
+        .par_iter()
+        .map(|key| (*key, detect_cycle(graph, key)))
+        .collect()
 }

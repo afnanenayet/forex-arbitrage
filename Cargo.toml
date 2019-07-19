@@ -1,6 +1,6 @@
 [package]
 name = "forex-arbitrage"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Afnan Enayet <afnan@afnan.io>"]
 edition = "2018"
 
@@ -12,3 +12,8 @@ failure = "0.1"
 futures = "0.1"
 structopt = "0.2"
 tokio = "0.1"
+rayon = "1.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
